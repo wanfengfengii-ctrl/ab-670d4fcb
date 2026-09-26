@@ -1,0 +1,29 @@
+name: polar-morse-rescue
+
+services:
+  # 静态站点：通过 WEB_PORT 暴露，HTTP 健康检查确认可用
+  web:
+    build:
+      context: .
+      target: runtime
+    ports:
+      - "${WEB_PORT:-8080}:80"
+    healthcheck:
+      test: ["CMD", "wget", "-qO-", "http://127.0.0.1/healthz"]
+      interval: 5s
+      timeout: 3s
+      retries: 12
+      start_period: 5s
+    restart: unless-stopped
+
+  # 一次性验证服务：退出码报告 单测/构建/健康端点/核心样例 结论
+  verify:
+    build:
+      context: .
+      target: verify
+    depends_on:
+      web:
+        condition: service_healthy
+    environment:
+      WEB_HEALTH_URL: http://web:80/healthz
+    restart: "no"
